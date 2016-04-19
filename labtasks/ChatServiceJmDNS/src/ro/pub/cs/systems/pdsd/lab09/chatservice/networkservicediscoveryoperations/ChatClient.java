@@ -12,6 +12,10 @@ import java.util.concurrent.BlockingQueue;
 import ro.pub.cs.systems.pdsd.lab09.chatservice.general.Constants;
 import ro.pub.cs.systems.pdsd.lab09.chatservice.general.Utilities;
 import ro.pub.cs.systems.pdsd.lab09.chatservice.model.Message;
+import ro.pub.cs.systems.pdsd.lab09.chatservice.view.ChatActivity;
+import ro.pub.cs.systems.pdsd.lab09.chatservice.view.ChatConversationFragment;
+import android.app.Fragment;
+import android.app.FragmentManager;
 import android.content.Context;
 import android.util.Log;
 
@@ -74,7 +78,25 @@ public class ChatClient {
 			if (printWriter != null) {
 				try {
 					Log.d(Constants.TAG, "Sending messages to "+socket.getInetAddress()+":"+socket.getLocalPort());
-					
+					while (!Thread.currentThread().isInterrupted()) {		
+						String content = messageQueue.take();
+						Log.d(Constants.TAG, "Sending the message "+content);
+						if (content != null) {
+							printWriter.println(content);
+							printWriter.flush();
+							Message message = new Message(content, Constants.MESSAGE_TYPE_SENT);
+							conversationHistory.add(message);
+							if (context != null) {
+								ChatActivity chatActivity = (ChatActivity)context;
+								FragmentManager fragmentManager = chatActivity.getFragmentManager();
+								Fragment fragment = fragmentManager.findFragmentByTag(Constants.FRAGMENT_TAG);
+								if (fragment instanceof ChatConversationFragment && fragment.isVisible()) {
+									ChatConversationFragment chatConversationFragment = (ChatConversationFragment)fragment;
+									chatConversationFragment.appendMessage(message);
+								}
+							}
+						}
+					}
 					// TODO: exercise 6
 					// iterate while the thread is not yet interrupted
 					// - get the content (a line) from the messageQueue, if available, using the take() method
@@ -112,7 +134,24 @@ public class ChatClient {
 			if (bufferedReader != null) {
 				try {
 					Log.d(Constants.TAG, "Reading messages from "+socket.getInetAddress()+":"+socket.getLocalPort());
-					
+					while (!Thread.currentThread().isInterrupted()) {
+						String content = bufferedReader.readLine();
+						if (content != null) {
+							Log.d(Constants.TAG, "Received the message "+content);
+							
+							Message message = new Message(content, Constants.MESSAGE_TYPE_RECEIVED);
+							conversationHistory.add(message);
+							if (context != null) {
+								ChatActivity chatActivity = (ChatActivity)context;
+								FragmentManager fragmentManager = chatActivity.getFragmentManager();
+								Fragment fragment = fragmentManager.findFragmentByTag(Constants.FRAGMENT_TAG);
+								if (fragment instanceof ChatConversationFragment && fragment.isVisible()) {
+									ChatConversationFragment chatConversationFragment = (ChatConversationFragment)fragment;
+									chatConversationFragment.appendMessage(message);
+								}
+							}
+						}
+					}
 					// TODO: exercise 7
 					// iterate while the thread is not yet interrupted
 					// - receive the content (a line) from the bufferedReader, if available
